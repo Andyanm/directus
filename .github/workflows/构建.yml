@@ -1,35 +1,49 @@
 name: Build Directus on FreeBSD
 
 on:
-  workflow_dispatch:   # 手动触发
-  push:                # push 到 main 分支时触发
-    branches: [ "main" ]
+  workflow_dispatch:  # 手动触发
+  push:
+    branches: [ "main" ]  # 每次 push main 分支触发
 
 jobs:
   build:
     runs-on: ubuntu-latest
     name: FreeBSD VM Build
     steps:
+      # 1. 拉取仓库代码
       - uses: actions/checkout@v4
 
-      - name: Setup FreeBSD VM
+      # 2. 启动 FreeBSD VM 并执行构建
+      - name: Setup FreeBSD VM and build Directus
         uses: vmactions/freebsd-vm@v1
         with:
           release: "14.1"
           usesh: true
           run: |
+            # 打印命令并在出错时停止
+            set -ex
+
+            # 安装依赖
             pkg install -y node pnpm git
 
+            # 确认当前目录
+            pwd
+            ls -lh
+
+            # 安装生产依赖
             pnpm install --frozen-lockfile --prod
+
+            # 构建 Directus
             pnpm build
 
-            tar -czf directus-freebsd.tar.gz \
-              node_modules \
-              dist \
-              package.json \
-              pnpm-lock.yaml
+            # 打包产物到当前目录
+            tar -czf directus-freebsd.tar.gz node_modules dist package.json pnpm-lock.yaml
 
-      - name: Upload Artifact
+            # 确认打包文件生成
+            ls -lh directus-freebsd.tar.gz
+
+      # 3. 上传 artifact 到 GitHub Actions 页面
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: directus-freebsd
